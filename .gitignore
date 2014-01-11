@@ -1,5 +1,103 @@
-# History files
-.Rhistory
+# Titanic dataset is on kaggle.com
+# --------------------------------
 
-# Example code in package build process
-*-Ex.R
+library(caret)
+library("nnet")
+library("MASS")
+library("reshape")
+
+train_data = read.csv("D:/Titanic/Train.csv", header=T)
+
+trainclean = train_data[,-c(1,4,9,11)]
+trainclean$Survived = as.factor(trainclean$Survived)
+trainclean$Pclass = as.integer(as.character(trainclean$Pclass))
+levels(trainclean$Sex)[levels(trainclean$Sex) == "female"] = 0
+levels(trainclean$Sex)[levels(trainclean$Sex) == "male"] = 1
+levels(trainclean$Embarked)[levels(trainclean$Embarked) == "C"] = 0
+levels(trainclean$Embarked)[levels(trainclean$Embarked) == "Q"] = 1
+levels(trainclean$Embarked)[levels(trainclean$Embarked) == "S"] = 2
+levels(trainclean$Embarked)[levels(trainclean$Embarked) == ""] = 1.5 #average filling
+trainclean$Embarked = as.integer(as.character(trainclean$Embarked))
+trainclean$Sex = as.integer(as.character(trainclean$Sex))
+trainclean$Age = as.integer(as.character(trainclean$Age))
+trainclean$Fare = as.integer(as.character(trainclean$Fare))
+trainclean[is.na(trainclean)] = as.integer(mean(trainclean$Age,na.rm=T))
+
+test_data = read.csv("D:/Titanic/Test.csv", header=T)
+
+testclean = test_data[,-c(1,3,8,10)]
+levels(testclean$Sex)[levels(testclean$Sex) == "female"] = 0
+levels(testclean$Sex)[levels(testclean$Sex) == "male"] = 1
+levels(testclean$Embarked)[levels(testclean$Embarked) == "C"] = 0
+levels(testclean$Embarked)[levels(testclean$Embarked) == "Q"] = 1
+levels(testclean$Embarked)[levels(testclean$Embarked) == "S"] = 2
+testclean$Embarked = as.integer(as.character(testclean$Embarked))
+testclean$Sex = as.integer(as.character(testclean$Sex))
+testclean$Age = as.integer(as.character(testclean$Age))
+testclean$Fare = as.integer(as.character(testclean$Fare))
+testclean[is.na(testclean)] = as.integer(mean(testclean$Age,na.rm=T))
+
+#------------------------------------
+# Predict test data : Random Forest |
+#------------------------------------
+model = train(Survived ~ ., trainclean, method='rf')
+predict_testclean=predict(model,testclean)
+
+# Create csv file for Kaggle
+#---------------------------
+subpredict = cbind(as.character(predict_testclean),as.character(test_data$PassengerId))
+write.table(subpredict, file = "Random Forest Titanic Submission", sep=",", row.names =F)
+
+# ******************************************************
+# Test using train data to check accuracy of mining data
+# ******************************************************
+train1 = trainclean[1:446,]
+train2 = trainclean[447:891,]
+train3 = train2[,-1]
+predict_test1=predict(model,train3)
+tablecheck = table(predict_test1,train2$Survived) # Table
+sum(tablecheck[row(tablecheck) != col(tablecheck)])/sum(tablecheck) # 0.1078
+
+#------------------------------------------
+# Predict test data : Logistic Regression |
+#------------------------------------------
+
+model2 = train(Survived ~ ., trainclean, method='glmStepAIC')
+predict_testclean2 = predict(model2,testclean)
+
+predict_test2 = predict(model2,train3)
+tablecheck2 = table(predict_test2,train2$Survived) # Table
+sum(tablecheck2[row(tablecheck2) != col(tablecheck2)])/sum(tablecheck2) # 0.1955
+
+#-------------------------------------------------------
+# Predict test data : Logistic/Multinomial Regression  |
+#-------------------------------------------------------
+
+model3 = train(Survived ~ ., trainclean, method='multinom')
+predict_testclean3 = predict(model3,testclean)
+
+predict_test3 = predict(model3,train3)
+tablecheck3 = table(predict_test3,train2$Survived) # Table
+sum(tablecheck3[row(tablecheck3) != col(tablecheck3)])/sum(tablecheck3) #0.1955
+
+#--------------------------------------
+# Predict test data : Neural Network  |
+#--------------------------------------
+
+model = train(Survived ~ ., trainclean, method='nnet',na.action = na.omit,maxit = 100,linout=FALSE,trace=FALSE,.decay=c(0,0.001,0.1),.size=c(5,6,7))
+predict_testclean4 = predict(model,testclean)
+
+predict_test4 = predict(model,train3)
+tablecheck4 = table(predict_test4,train2$Survived) # Table
+sum(tablecheck4[row(tablecheck4) != col(tablecheck4)])/sum(tablecheck4) # 0.1685
+
+
+
+
+
+
+
+
+
+
+
